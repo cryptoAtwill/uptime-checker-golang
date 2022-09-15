@@ -48,5 +48,5 @@ func parseActorIDFromString(s string) (ActorID, error) {
 	if err != nil {
 		return ActorID(0), err
 	}
-	return uint32(v), nil
+	return ActorID(v), nil
 }

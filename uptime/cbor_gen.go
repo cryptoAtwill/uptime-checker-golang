@@ -18,54 +18,6 @@ var _ = cid.Undef
 var _ = math.E
 var _ = sort.Sort
 
-func (t *NodeInfo) UnmarshalCBOR(r io.Reader) (err error) {
-	*t = NodeInfo{}
-
-	cr := cbg.NewCborReader(r)
-
-	maj, extra, err := cr.ReadHeader()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-	}()
-
-	if maj != cbg.MajMap {
-		return fmt.Errorf("cbor input should be of type map")
-	}
-
-	if extra > cbg.MaxLength {
-		return fmt.Errorf("NodeInfo: map struct too large (%d)", extra)
-	}
-
-	var name string
-	n := extra
-
-	for i := uint64(0); i < n; i++ {
-
-		{
-			sval, err := cbg.ReadString(cr)
-			if err != nil {
-				return err
-			}
-
-			name = string(sval)
-		}
-
-		switch name {
-
-		default:
-			// Field doesn't exist on this type, so ignore it
-			cbg.ScanForLinks(r, func(cid.Cid) {})
-		}
-	}
-
-	return nil
-}
-
 func (t *Votes) UnmarshalCBOR(r io.Reader) (err error) {
 	*t = Votes{}
 
@@ -104,7 +56,147 @@ func (t *Votes) UnmarshalCBOR(r io.Reader) (err error) {
 		}
 
 		switch name {
+		// t.LastVote (int64) (int64)
+		case "last_vote":
+			{
+				maj, extra, err := cr.ReadHeader()
+				var extraI int64
+				if err != nil {
+					return err
+				}
+				switch maj {
+				case cbg.MajUnsignedInt:
+					extraI = int64(extra)
+					if extraI < 0 {
+						return fmt.Errorf("int64 positive overflow")
+					}
+				case cbg.MajNegativeInt:
+					extraI = int64(extra)
+					if extraI < 0 {
+						return fmt.Errorf("int64 negative oveflow")
+					}
+					extraI = -1 - extraI
+				default:
+					return fmt.Errorf("wrong type for int64 field: %d", maj)
+				}
 
+				t.LastVote = int64(extraI)
+			}
+			// t.Votes ([]uint64) (slice)
+		case "votes":
+
+			maj, extra, err = cr.ReadHeader()
+			if err != nil {
+				return err
+			}
+
+			if extra > cbg.MaxLength {
+				return fmt.Errorf("t.Votes: array too large (%d)", extra)
+			}
+
+			if maj != cbg.MajArray {
+				return fmt.Errorf("expected cbor array")
+			}
+
+			if extra > 0 {
+				t.Votes = make([]uint64, extra)
+			}
+
+			for i := 0; i < int(extra); i++ {
+
+				maj, val, err := cr.ReadHeader()
+				if err != nil {
+					return xerrors.Errorf("failed to read uint64 for t.Votes slice: %w", err)
+				}
+
+				if maj != cbg.MajUnsignedInt {
+					return xerrors.Errorf("value read for array t.Votes was not a uint, instead got %d", maj)
+				}
+
+				t.Votes[i] = uint64(val)
+			}
+
+		default:
+			// Field doesn't exist on this type, so ignore it
+			cbg.ScanForLinks(r, func(cid.Cid) {})
+		}
+	}
+
+	return nil
+}
+
+func (t *NodeInfo) UnmarshalCBOR(r io.Reader) (err error) {
+	*t = NodeInfo{}
+
+	cr := cbg.NewCborReader(r)
+
+	maj, extra, err := cr.ReadHeader()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
+	}()
+
+	if maj != cbg.MajMap {
+		return fmt.Errorf("cbor input should be of type map")
+	}
+
+	if extra > cbg.MaxLength {
+		return fmt.Errorf("NodeInfo: map struct too large (%d)", extra)
+	}
+
+	var name string
+	n := extra
+
+	for i := uint64(0); i < n; i++ {
+
+		{
+			sval, err := cbg.ReadString(cr)
+			if err != nil {
+				return err
+			}
+
+			name = string(sval)
+		}
+
+		switch name {
+		case "creator":
+			{
+
+				maj, extra, err = cr.ReadHeader()
+				if err != nil {
+					return err
+				}
+				if maj != cbg.MajUnsignedInt {
+					return fmt.Errorf("wrong type for uint64 field")
+				}
+				t.Creator = uint64(extra)
+			}
+		case "addresses":
+			{
+				maj, extra, err = cr.ReadHeader()
+				if err != nil {
+					log.Errorw("cannot read", "err", err)
+					return err
+				}
+
+				if extra > 0 {
+					t.Addresses = make([]string, extra)
+				}
+			
+				for i := 0; i < int(extra); i++ {
+					sval, err := cbg.ReadString(cr)
+
+					if err != nil {
+						return err
+					}
+			
+					t.Addresses[i] = sval
+				}
+			}
 		default:
 			// Field doesn't exist on this type, so ignore it
 			cbg.ScanForLinks(r, func(cid.Cid) {})

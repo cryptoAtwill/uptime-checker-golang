@@ -7,7 +7,7 @@ import (
 // TODO: correct types?
 type PeerID = string;
 type MultiAddr = string;
-type ActorID = uint32;
+type ActorID = uint64;
 type ChainEpoch = int64;
 
 type WrappedActorKey struct {
@@ -42,9 +42,9 @@ type NodeInfo struct {
 
 type Votes struct {
     // Time of the last offline vote received by a checker.
-    lastVote ChainEpoch
+    LastVote ChainEpoch
     // Checkers that have voted
-    votes []ActorID
+    Votes []ActorID
 }
 
 /// Healthcheck information provided for each peer.

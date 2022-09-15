@@ -10,7 +10,7 @@ import (
 
 func main() {
 	if err := gen.WriteMapEncodersToFile("../cbor_gen.go", "uptime",
-		uptime.NodeInfo{},
+		// uptime.NodeInfo{},
 		uptime.Votes{},
 		uptime.HAMTStateInner{},
 	); err != nil {

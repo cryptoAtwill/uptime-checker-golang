@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "net/http/pprof"
 	"os"
+	"net/http"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/urfave/cli/v2"
@@ -36,9 +37,6 @@ func main() {
 				EnvVars: []string{"LOTUS_STATS_LOG_LEVEL"},
 				Value:   "debug",
 			},
-		},
-		Before: func(cctx *cli.Context) error {
-			return logging.SetLogLevelRegex("stats/*", cctx.String("log-level"))
 		},
 		Commands: local,
 	}
@@ -82,14 +80,17 @@ var runCmd = &cli.Command{
 		}
 		defer closer()
 
-		checker, err := uptime.NewUptimeChecker(api, actorAddress, make([]uptime.PeerID, 0), self)
+		multiAddresses := make([]uptime.MultiAddr, 0)
+		multiAddresses = append(multiAddresses, uptime.MultiAddr("/ip4/1.1.1.1/tcp/4242/p2p/QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N"))
+		multiAddresses = append(multiAddresses, uptime.MultiAddr("/ip4/2.2.2.2/tcp/4242/p2p/QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N"))
+		checker, err := uptime.NewUptimeChecker(api, actorAddress, multiAddresses, self)
 		err = checker.Start(ctx)
 		if err != nil {
 			return err
 		}
 
-		// TODO: start http server
+		return http.ListenAndServe(":3333", nil)
 
-		return nil
+		// return nil
 	},
 }

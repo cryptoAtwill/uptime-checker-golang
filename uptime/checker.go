@@ -70,13 +70,13 @@ func (u *UptimeChecker) Start(ctx context.Context) error {
 		u.processReportedCheckers(ctx)
 	}()
 
-	go func() {
-		u.monitorMemberNodes(ctx)
-	}()
+	// go func() {
+	// 	u.monitorMemberNodes(ctx)
+	// }()
 
-	go func() {
-		u.monitorCheckerNodes(ctx)
-	}()
+	// go func() {
+	// 	u.monitorCheckerNodes(ctx)
+	// }()
 
 	return nil
 }
@@ -153,6 +153,7 @@ func (u *UptimeChecker) Stop() {
 func (u *UptimeChecker) CheckChecker(ctx context.Context, actorID ActorID, addrs *[]MultiAddr) error {
 	infos := u.multiAddrsUp(addrs)
 	if !allUp(&infos) {
+		log.Infow("actor down, report now", "actorID", actorID)
 		return u.ReportChecker(ctx, actorID)
 	}
 	return nil
@@ -258,9 +259,12 @@ func (u *UptimeChecker) monitorMemberNodes(ctx context.Context) error {
 		for _, toCheckActorID := range listToCheck {
 			addrs, err := state.ListMemberMultiAddrs(toCheckActorID)
 			if err != nil {
-				log.Errorw("cannot list member multi addrs", "peer", toCheckActorID, "err", err)
+				log.Errorw("cannot list member multi addrs", "actor", toCheckActorID, "err", err)
 				continue
 			}
+
+			log.Debugw("member info", "actor", toCheckActorID, "addrs", addrs)
+
 			u.CheckMember(toCheckActorID, addrs)
 		}
 
@@ -294,7 +298,13 @@ func (u *UptimeChecker) monitorCheckerNodes(ctx context.Context) error {
 				log.Errorw("cannot list member multi addrs", "peer", toCheckPeerID, "err", err)
 				continue
 			}
-			u.CheckMember(toCheckPeerID, addrs)
+
+			log.Errorw("toCheckPeerID addrs", "toCheckPeerID", toCheckPeerID, "addrs", addrs)
+
+			err = u.CheckMember(toCheckPeerID, addrs)
+			if err != nil {
+				log.Errorw("cannot check checker", "peer", toCheckPeerID, "err", err)
+			}
 		}
 
 		time.Sleep(time.Duration(1) * time.Second)

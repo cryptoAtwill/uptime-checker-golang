@@ -1,7 +1,0 @@
-[user]
-	email = willeslau@gmail.com
-	name = willesxm
-[safe]
-	directory = /home/lxm/Documents/ChainSafe/api3-rust
-[credential]
-	helper = "!f() { /home/lotus/.vscode-server/bin/c3f126316369cd610563c75b1b1725e0679adfb3/node /tmp/vscode-remote-containers-08761e72c5fff3b5aad32bd18b3dd7134970c5b9.js $*; }; f"

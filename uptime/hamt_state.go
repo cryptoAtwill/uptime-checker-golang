@@ -115,6 +115,7 @@ func (m *HAMTState) ListCheckerMultiAddrs(actorID ActorID) (*[]MultiAddr, error)
 		return &addresses, nil
 	}
 
+	log.Debugw("addresses", "actorID", actorID, "addresses", d)
 	return &d.Addresses, nil
 }
 
