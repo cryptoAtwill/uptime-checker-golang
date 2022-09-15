@@ -9,8 +9,11 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/lotus/build"
+	"github.com/filecoin-project/lotus/uptime"
 	lcli "github.com/filecoin-project/lotus/cli"
 )
+
+var log = logging.Logger("uptime-checker")
 
 func main() {
 	local := []*cli.Command{
@@ -31,7 +34,7 @@ func main() {
 			&cli.StringFlag{
 				Name:    "log-level",
 				EnvVars: []string{"LOTUS_STATS_LOG_LEVEL"},
-				Value:   "info",
+				Value:   "debug",
 			},
 		},
 		Before: func(cctx *cli.Context) error {
@@ -71,18 +74,22 @@ var runCmd = &cli.Command{
 		ctx := context.Background()
 
 		actorAddress := cctx.String("actor-address")
+		self := uptime.ActorID(100) // TODO: what to put as self address?
 
-		api, closer, err := lcli.GetFullNodeAPIV1(cctx)
+		api, closer, err := lcli.GetFullNodeAPI(cctx)
 		if err != nil {
 			return err
 		}
 		defer closer()
 
-		checker, err := NewUptimeChecker(api, actorAddress)
+		checker, err := uptime.NewUptimeChecker(api, actorAddress, make([]uptime.PeerID, 0), self)
 		err = checker.Start(ctx)
 		if err != nil {
 			return err
 		}
+
+		// TODO: start http server
+
 		return nil
 	},
 }
