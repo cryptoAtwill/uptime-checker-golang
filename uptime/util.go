@@ -2,7 +2,6 @@ package uptime
 
 import (
 	"bytes"
-	"time"
 	"strconv"
 	"encoding/json"
 )
@@ -11,16 +10,6 @@ func encodeJson(payload interface{}) ([]byte, error) {
 	reqBodyBytes := new(bytes.Buffer)
 	err := json.NewEncoder(reqBodyBytes).Encode(payload)
 	return reqBodyBytes.Bytes(), err
-}
-
-// Checks is up and also record the latency
-func isUp(addr MultiAddr) UpInfo {
-	// TODO: with libp2p
-	return UpInfo{
-		isOnline: true,
-		latency: uint64(0),
-		checkedTime: uint64(time.Now().Unix()),
-	}
 }
 
 func allUp(infos *[]UpInfo) bool {

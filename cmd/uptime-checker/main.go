@@ -4,7 +4,9 @@ import (
 	"context"
 	_ "net/http/pprof"
 	"os"
-	"net/http"
+	"os/signal"
+	"syscall"
+	"strconv"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/urfave/cli/v2"
@@ -12,6 +14,12 @@ import (
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/uptime"
 	lcli "github.com/filecoin-project/lotus/cli"
+
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/multiformats/go-multiaddr"
+	peerstore "github.com/libp2p/go-libp2p-core/peer"
 )
 
 var log = logging.Logger("uptime-checker")
@@ -64,12 +72,27 @@ var runCmd = &cli.Command{
 		&cli.StringFlag{
 			Name:    "actor-address",
 			EnvVars: []string{"ACTOR_ADDRESS"},
-			Usage:   "The addres of the up time checker actor",
+			Usage:   "The address of the up time checker actor",
 			Value:   "",
+		},
+		&cli.StringFlag{
+			Name:    "checker-host",
+			EnvVars: []string{"CHECKER_HOST"},
+			Usage:   "The host of the up time checker actor",
+			Value:   "0.0.0.0",
+		},
+		&cli.IntFlag{
+			Name:    "checker-port",
+			EnvVars: []string{"CHECKER_PORT"},
+			Usage:   "The port of the up time checker actor",
+			Value:   3000,
 		},
 	},
 	Action: func(cctx *cli.Context) error {
 		ctx := context.Background()
+
+		checkerHost := cctx.String("checker-host")
+		checkerPort := cctx.Int("checker-port")
 
 		actorAddress := cctx.String("actor-address")
 		self := uptime.ActorID(100) // TODO: what to put as self address?
@@ -79,18 +102,61 @@ var runCmd = &cli.Command{
 			return err
 		}
 		defer closer()
+		
+		peerID, err := api.ID(ctx);
+		if err != nil {
+			return err
+		}
 
-		multiAddresses := make([]uptime.MultiAddr, 0)
-		multiAddresses = append(multiAddresses, uptime.MultiAddr("/ip4/1.1.1.1/tcp/4242/p2p/QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N"))
-		multiAddresses = append(multiAddresses, uptime.MultiAddr("/ip4/2.2.2.2/tcp/4242/p2p/QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N"))
-		checker, err := uptime.NewUptimeChecker(api, actorAddress, multiAddresses, self)
+		node, ping, addrs, err := setupLibp2p(peerID, checkerHost, checkerPort)
+		if err != nil {
+			return err
+		}
+
+		multiAddresses := make([]uptime.MultiAddr, len(addrs))
+		for i, addr := range addrs {
+			multiAddresses[i] = addr.String()
+		}
+
+		checker, err := uptime.NewUptimeChecker(api, actorAddress, multiAddresses, self, node, ping)
 		err = checker.Start(ctx)
 		if err != nil {
 			return err
 		}
 
-		return http.ListenAndServe(":3333", nil)
+		// wait for a SIGINT or SIGTERM signal
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+		<-ch
+		log.Info("Received signal, shutting down...")
 
-		// return nil
+		// shut the node down
+		if err := node.Close(); err != nil {
+				panic(err)
+		}
+
+		return nil
 	},
+}
+
+func setupLibp2p(peerID peerstore.ID, hostStr string, port int) (host.Host, *ping.PingService, []multiaddr.Multiaddr, error) {
+	node, err := libp2p.New(
+		libp2p.ListenAddrStrings("/ip4/" + hostStr + "/tcp/" + strconv.Itoa(port)),
+		libp2p.Ping(false),
+	)
+	if err != nil {
+		return node, nil, make([]multiaddr.Multiaddr, 0), err
+	}
+
+	pingService := &ping.PingService{Host: node}
+	node.SetStreamHandler(ping.ID, pingService.PingHandler)
+
+	peerInfo := peerstore.AddrInfo{
+		ID:    peerID,
+		Addrs: node.Addrs(),
+	}
+	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
+
+	log.Infow("Listen addresses:", "addrs", addrs)
+	return node, pingService, addrs, nil
 }

@@ -21,8 +21,10 @@ export ${FULL_NODE}
 
 ./lotus chain create-actor bafk2bzaceadu2yc3k2fozpzhieeqcryrjwpaj2lwjeoyv6u6zhvevupehy5yq ewogICAgImlkcyI6IFsKICAgICAgICAiMTJEM0tvb1dLODdVZkNTeTRRc2lTa1lua2VSRUpUQzZDcllhZEhXcTh6V2JRRW5mTGlHdiIKICAgIF0sCiAgICAiY3JlYXRvcnMiOiBbCiAgICAgICAgMTIzCiAgICBdLAogICAgImFkZHJlc3NlcyI6IFsKICAgICAgICBbCiAgICAgICAgICAgICIvaXA0LzcuNy43LjcvdGNwLzQyNDIvcDJwL1FtWXlRU28xYzFZbTdvcld4TFl2Q3JNMkVteEZUQU5mOHdYbW1FN0RXamh4NU4iCiAgICAgICAgXQogICAgXQp9
 
+./lotus chain create-actor bafk2bzaceadu2yc3k2fozpzhieeqcryrjwpaj2lwjeoyv6u6zhvevupehy5yq ewogICAgImlkcyI6IFtdLAogICAgImNyZWF0b3JzIjogW10sCiAgICAiYWRkcmVzc2VzIjogW10KfQ==
+
 make uptime-checker
-./uptime-checker --lotus-path /home/lotus/.lotus-local-net run --actor-address t2w2pmfs2mu7uxr7vgnoe2fj5xpeomnkd5v2pcixa
+./uptime-checker --lotus-path /home/lotus/.lotus-local-net run --actor-address t24gt3p42wao27jqzyatalcdrbl4oqatexka6axuy
 
 ./lotus chain invoke t2w2pmfs2mu7uxr7vgnoe2fj5xpeomnkd5v2pcixa 6
 
