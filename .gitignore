@@ -53,3 +53,17 @@ build/builtin-actors/v*
 build/builtin-actors/*.car
 
 dist/
+
+.genesis-sectors
+.lotus-local-net
+.lotus-miner-local-net
+.ssh
+.vscode-server
+uptime_checker.compact.wasm
+uptime-checker
+.cache
+.devcontainer
+devgen.car
+localnet.json
+.bash_history
+.gnupg
