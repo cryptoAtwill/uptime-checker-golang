@@ -155,8 +155,10 @@ var runCmd = &cli.Command{
 }
 
 func setupLibp2p(peerID peerstore.ID, hostStr string, port int) (host.Host, *ping.PingService, []multiaddr.Multiaddr, error) {
+	log.Infow("ignore host str and port for test", "host", hostStr, "port", port)
+
 	node, err := libp2p.New(
-		libp2p.ListenAddrStrings("/ip4/" + hostStr + "/tcp/" + strconv.Itoa(port)),
+		// libp2p.ListenAddrStrings("/ip4/" + hostStr + "/tcp/" + strconv.Itoa(port)),
 		libp2p.Ping(false),
 	)
 	if err != nil {
@@ -172,6 +174,8 @@ func setupLibp2p(peerID peerstore.ID, hostStr string, port int) (host.Host, *pin
 	}
 	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
 
+	onlyFirst := make([]multiaddr.Multiaddr, 1)
+	onlyFirst = append(onlyFirst, addrs[0])
 	log.Infow("Listen addresses:", "addrs", addrs)
 	return node, pingService, addrs, nil
 }

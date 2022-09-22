@@ -1,16 +1,17 @@
 ```shell
-docker run -it --rm -v `pwd`:/home/lotus -w /home/lotus --entrypoint bash --user 1000 lotus-fvm
-docker run -it --rm -v `pwd`:/home/lotus -v /home/lxm/.ssh:/home/lotus/.ssh -w /home/lotus --entrypoint bash --user 1000 lotus-fvm
+docker run -it --rm -v `pwd`:/home/lotus -w /home/lotus --network host --entrypoint bash --user 1000 lotus-fvm
+docker run -it --rm -v `pwd`:/home/lotus -w /home/lotus --entrypoint bash lotus-fvm
+
 
 # https://lotus.filecoin.io/lotus/developers/local-network/
 
-export LOTUS_PATH=~/.lotus-local-net
-export LOTUS_MINER_PATH=~/.lotus-miner-local-net
+export LOTUS_PATH=~/.lotus-node-0
+export LOTUS_MINER_PATH=~/.lotus-miner-node-0
 export LOTUS_SKIP_GENESIS_CHECK=_yes_
 export CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
 export CGO_CFLAGS="-D__BLST_PORTABLE__"
 
-./lotus daemon --lotus-make-genesis=devgen.car --genesis-template=localnet.json --bootstrap=false
+nohup ./lotus daemon --lotus-make-genesis=devgen.car --genesis-template=localnet.json --bootstrap=false > node-0.out &
 
 FULL_NODE=$(./lotus auth api-info --perm admin)
 export ${FULL_NODE}
@@ -24,7 +25,9 @@ export ${FULL_NODE}
 ./lotus chain create-actor bafk2bzaceadu2yc3k2fozpzhieeqcryrjwpaj2lwjeoyv6u6zhvevupehy5yq ewogICAgImlkcyI6IFtdLAogICAgImNyZWF0b3JzIjogW10sCiAgICAiYWRkcmVzc2VzIjogW10KfQ==
 
 make uptime-checker
-./uptime-checker --lotus-path /home/lotus/.lotus-local-net run --actor-address t24gt3p42wao27jqzyatalcdrbl4oqatexka6axuy
+./uptime-checker --lotus-path /home/lotus/.lotus-local-net run --checker-host 0.0.0.0 --actor-address t2pbgbpl62p4thkmvpmbbo7rv36fp6jb44qw4mixq --actor-id 100
+
+./uptime-checker --lotus-path /home/lotus/.lotus-local-net run --checker-port 3001 --actor-address t2id4hwrn5osc2es6muzoblsgw2la4idd6gklvlhi --actor-id 101
 
 ./lotus chain invoke t2w2pmfs2mu7uxr7vgnoe2fj5xpeomnkd5v2pcixa 6
 
@@ -33,4 +36,12 @@ make uptime-checker
 ./lotus chain invoke t2w2pmfs2mu7uxr7vgnoe2fj5xpeomnkd5v2pcixa 3 ewogICAgImlkIjogIjEyRDNLb29XSzg3VWZDU3k0UXNpU2tZbmtlUkVKVEM2Q3JZYWRIV3E4eldiUUVuZkxpR3YiLAogICAgImNyZWF0b3IiOiAxMjMsCiAgICAiYWRkcmVzc2VzIjogWyIvaXA0LzcuNy43LjcvdGNwLzQyNDIvcDJwL1FtWXlRU28xYzFZbTdvcld4TFl2Q3JNMkVteEZUQU5mOHdYbW1FN0RXamh4NU4iXQp9
 
 ./lotus chain invoke t2w2pmfs2mu7uxr7vgnoe2fj5xpeomnkd5v2pcixa 8 eyJjaGVja2VyIjogMTAwMH0=
+./lotus chain invoke t24yl7hskmou5uhrcdz3g6prqlbhefivmocnawlda 8 eyJjaGVja2VyIjogMTAwfQ==
 ```
+
+export LOTUS_PATH=~/.lotus-node-1
+export LOTUS_SKIP_GENESIS_CHECK=_yes_
+export CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
+export CGO_CFLAGS="-D__BLST_PORTABLE__"
+
+nohup ./lotus daemon --genesis=devgen.car --api 30001 > node-1.out &
