@@ -103,6 +103,7 @@ func (u *UptimeChecker) Start(ctx context.Context) error {
 // HasRegistered checks if the current checker has already registered itself in the actor
 func (u *UptimeChecker) HasRegistered(ctx context.Context) (bool, error) {
 	s, err := Load(ctx, u.api, u.actorAddress, u.self)
+	log.Errorw("self", "self", u.self)
 	if err != nil {
 		return false, err
 	}
@@ -237,6 +238,19 @@ func (u *UptimeChecker) recordMemberHealthInfo(actorID ActorID, upInfos *[]UpInf
 func (u *UptimeChecker) multiAddrsUp(addrs *[]MultiAddr) []UpInfo {
 	upInfos := make([]UpInfo, 0)
 	for _, addr := range(*addrs) {
+
+		isCheck := true
+		for _, selfAddr := range u.checkerAddresses {
+			if selfAddr == addr {
+				isCheck = false
+				break
+			}
+		}
+
+		if !isCheck {
+			continue
+		}
+
 		upInfos = append(upInfos, u.isUp(addr))
 	}
 	return upInfos
@@ -400,8 +414,9 @@ func (u *UptimeChecker) isUp(addrStr MultiAddr) UpInfo {
 		return upInfo
 	}
 
+	log.Errorw("addr for peer", "peer", peer)
 	if err := u.node.Connect(context.Background(), *peer); err != nil {
-		log.Errorw("cannot connect to multi addr", "peer", peer.ID)
+		log.Errorw("cannot connect to multi addr", "peer", peer.ID, "err", err, "addr", addr)
 		return upInfo
 	}
 
