@@ -45,8 +45,6 @@ func (c *CacheState) ListReportedCheckerNotVoted() (map[ActorID]*[]MultiAddr, er
 		return ids, err
 	}
 
-	log.Errorw("list of offline checkers", "checkers", l)
-
 	for _, actorID := range(l) {
 		hasVoted, err := c.HasVotedReportedPeer(actorID)
 		if err != nil {
@@ -64,6 +62,8 @@ func (c *CacheState) ListReportedCheckerNotVoted() (map[ActorID]*[]MultiAddr, er
 
 		ids[actorID] = addrList
 	}
+
+	log.Infow("list of not voted offline checkers", "actorIds", ids)
 
 	return ids, nil
 }

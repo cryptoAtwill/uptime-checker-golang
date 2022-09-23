@@ -103,7 +103,8 @@ func (u *UptimeChecker) Start(ctx context.Context) error {
 // HasRegistered checks if the current checker has already registered itself in the actor
 func (u *UptimeChecker) HasRegistered(ctx context.Context) (bool, error) {
 	s, err := Load(ctx, u.api, u.actorAddress, u.self)
-	log.Errorw("self", "self", u.self)
+	log.Infow("Self actor id", "actorId", u.self)
+
 	if err != nil {
 		return false, err
 	}
@@ -414,7 +415,7 @@ func (u *UptimeChecker) isUp(addrStr MultiAddr) UpInfo {
 		return upInfo
 	}
 
-	log.Errorw("addr for peer", "peer", peer)
+	log.Debugw("addr for peer", "peer", peer)
 	if err := u.node.Connect(context.Background(), *peer); err != nil {
 		log.Errorw("cannot connect to multi addr", "peer", peer.ID, "err", err, "addr", addr)
 		return upInfo
@@ -422,7 +423,7 @@ func (u *UptimeChecker) isUp(addrStr MultiAddr) UpInfo {
 
 	ch := u.ping.Ping(context.Background(), peer.ID)
 	res := <-ch
-	log.Errorw("got ping response!", "RTT:", res.RTT, "res", res)
+	log.Debugw("got ping response!", "RTT:", res.RTT, "res", res)
 
 	upInfo.isOnline = true
 	upInfo.checkedTime = uint64(time.Now().Unix())
@@ -432,4 +433,19 @@ func (u *UptimeChecker) isUp(addrStr MultiAddr) UpInfo {
 
 func (u *UptimeChecker) NodeInfo() map[ActorID]map[MultiAddr]HealtcheckInfo {
 	return u.nodeAddresses
+}
+
+func (u *UptimeChecker) NodeInfoJsonString() (string, error) {
+	data := make(map[ActorID]map[MultiAddr]HealtcheckInfo, 0)
+
+	for k, v := range u.nodeAddresses {
+		data[k] = v
+	}
+
+	bytes, err := encodeJson(data)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }

@@ -12,6 +12,7 @@ import (
 	"os"
 
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/filecoin-project/lotus/lib/lotuslog"
 	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/lotus/build"
@@ -33,6 +34,8 @@ func main() {
 		versionCmd,
 	}
 
+	lotuslog.SetupLogLevels()
+
 	app := &cli.App{
 		Name:    "uptime-checker",
 		Usage:   "Checks the uptime of UptimeCheckerActor member nodes",
@@ -42,11 +45,6 @@ func main() {
 				Name:    "lotus-path",
 				EnvVars: []string{"LOTUS_PATH"},
 				Value:   "~/.lotus", // TODO: Consider XDG_DATA_HOME
-			},
-			&cli.StringFlag{
-				Name:    "log-level",
-				EnvVars: []string{"LOTUS_STATS_LOG_LEVEL"},
-				Value:   "debug",
 			},
 		},
 		Commands: local,
@@ -94,15 +92,22 @@ var runCmd = &cli.Command{
 			Name:    "checker-port",
 			EnvVars: []string{"CHECKER_PORT"},
 			Usage:   "The port of the up time checker actor",
+			Value:   "30000",
+		},
+		&cli.StringFlag{
+			Name:    "node-info-port",
+			EnvVars: []string{"NODE_INFO_PORT"},
+			Usage:   "The port to get info of the nodes",
 			Value:   "3000",
 		},
 	},
 	Action: func(cctx *cli.Context) error {
 		ctx := context.Background()
 
-		// checkerHost := cctx.String("checker-host")
+		checkerHost := cctx.String("checker-host")
 		checkerPort := cctx.String("checker-port")
-
+		nodeInfoPort := cctx.String("node-info-port")
+	
 		actorAddress := cctx.String("actor-address")
 		self := uptime.ActorID(cctx.Int("actor-id"))
 
@@ -117,7 +122,7 @@ var runCmd = &cli.Command{
 		// 	return err
 		// }
 
-		node, ping, addrs, err := setupLibp2p()
+		node, ping, addrs, err := setupLibp2p(checkerHost, checkerPort)
 		if err != nil {
 			return err
 		}
@@ -134,10 +139,10 @@ var runCmd = &cli.Command{
 		}
 
 		http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-			info, _ := uptime.EncodeJson(checker.NodeInfo())
+			info, _ := checker.NodeInfoJsonString()
 			fmt.Fprint(writer, info)
 		})
-		err = http.ListenAndServe(":" + checkerPort, nil)
+		err = http.ListenAndServe(":" + nodeInfoPort, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -151,9 +156,9 @@ var runCmd = &cli.Command{
 	},
 }
 
-func setupLibp2p() (host.Host, *ping.PingService, []multiaddr.Multiaddr, error) {
+func setupLibp2p(checkerHost string, checkerPort string) (host.Host, *ping.PingService, []multiaddr.Multiaddr, error) {
 	node, err := libp2p.New(
-		// libp2p.ListenAddrStrings("/ip4/" + hostStr + "/tcp/" + strconv.Itoa(port)),
+		libp2p.ListenAddrStrings("/ip4/" + checkerHost + "/tcp/" + checkerPort),
 		libp2p.Ping(false),
 	)
 	if err != nil {
