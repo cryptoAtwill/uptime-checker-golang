@@ -310,7 +310,7 @@ func (u *UptimeChecker) monitorMemberNodes(ctx context.Context) error {
 				continue
 			}
 
-			log.Debugw("member info", "actor", toCheckActorID, "addrs", addrs)
+			log.Infow("member info", "actor", toCheckActorID, "addrs", addrs)
 
 			u.CheckMember(toCheckActorID, addrs)
 		}
