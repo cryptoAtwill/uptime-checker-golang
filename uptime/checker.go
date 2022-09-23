@@ -115,12 +115,8 @@ func (u *UptimeChecker) HasRegistered(ctx context.Context) (bool, error) {
 func (u *UptimeChecker) Register(ctx context.Context) error {
 	log.Infow("has yet to be registered with the actor, register now")
 
-	peerID, err := u.api.ID(ctx);
-	if err != nil {
-		return nil
-	}
-	
-	log.Infow("register with peer id", "peerID", peerID.String())
+	peerID := u.node.ID();
+	log.Infow("register new checker with peer id", "peerID", peerID.String())
 
 	params, err := encodeJson(NodeInfo {
 		Id: peerID.String(),
@@ -232,6 +228,8 @@ func (u *UptimeChecker) recordMemberHealthInfo(actorID ActorID, upInfos *[]UpInf
 		}
 		healthInfos[addr] = val
 	}
+
+	u.nodeAddresses[actorID] = healthInfos
 
 	return nil
 }
