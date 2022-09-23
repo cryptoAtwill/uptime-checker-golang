@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 
+	"strings"
+
 	"os"
 	"os/signal"
 	"syscall"
@@ -114,12 +116,12 @@ var runCmd = &cli.Command{
 		}
 		defer closer()
 
-		peerID, err := api.ID(ctx);
-		if err != nil {
-			return err
-		}
+		// peerID, err := api.ID(ctx);
+		// if err != nil {
+		// 	return err
+		// }
 
-		node, ping, addrs, err := setupLibp2p(peerID, checkerHost, checkerPort)
+		node, ping, addrs, err := setupLibp2p(checkerHost, checkerPort)
 		if err != nil {
 			return err
 		}
@@ -175,8 +177,13 @@ func setupLibp2p(hostStr string, port int) (host.Host, *ping.PingService, []mult
 	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
 
 	onlyFirst := make([]multiaddr.Multiaddr, 0)
-	onlyFirst = append(onlyFirst, addrs[0])
-	log.Errorw("Listen addresses:", "addrs", addrs)
+	for _, addr := range addrs {
+		if strings.HasPrefix(addr.String(), "/ip4") {
+			onlyFirst = append(onlyFirst, addrs[0])
+		}
+	}
+
+	log.Errorw("Listen addresses:", "addrs", addrs, "first", onlyFirst)
 
 	return node, pingService, onlyFirst, nil
 }
