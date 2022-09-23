@@ -154,7 +154,7 @@ var runCmd = &cli.Command{
 	},
 }
 
-func setupLibp2p(peerID peerstore.ID, hostStr string, port int) (host.Host, *ping.PingService, []multiaddr.Multiaddr, error) {
+func setupLibp2p(hostStr string, port int) (host.Host, *ping.PingService, []multiaddr.Multiaddr, error) {
 	log.Infow("ignore host str and port for test", "host", hostStr, "port", port)
 
 	node, err := libp2p.New(
@@ -169,15 +169,16 @@ func setupLibp2p(peerID peerstore.ID, hostStr string, port int) (host.Host, *pin
 	node.SetStreamHandler(ping.ID, pingService.PingHandler)
 
 	peerInfo := peerstore.AddrInfo{
-		ID:    peerID,
+		ID:    node.ID(),
 		Addrs: node.Addrs(),
 	}
 	addrs, err := peerstore.AddrInfoToP2pAddrs(&peerInfo)
 
-	onlyFirst := make([]multiaddr.Multiaddr, 1)
+	onlyFirst := make([]multiaddr.Multiaddr, 0)
 	onlyFirst = append(onlyFirst, addrs[0])
-	log.Infow("Listen addresses:", "addrs", addrs)
-	return node, pingService, addrs, nil
+	log.Errorw("Listen addresses:", "addrs", addrs)
+
+	return node, pingService, onlyFirst, nil
 }
 
 func getPong(w http.ResponseWriter, r *http.Request) {
