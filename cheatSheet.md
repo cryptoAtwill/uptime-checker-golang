@@ -6,6 +6,8 @@ docker run -it --rm -v `pwd`:/home/lotus -w /home/lotus --entrypoint bash lotus-
 # https://lotus.filecoin.io/lotus/developers/local-network/
 
 export LOTUS_PATH=~/.lotus-node-0
+export LOTUS_PATH=~/.lotus-local-net
+export LOTUS_PATH=~/.lotus-follower
 export LOTUS_MINER_PATH=~/.lotus-miner-node-0
 export LOTUS_SKIP_GENESIS_CHECK=_yes_
 export CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
@@ -25,7 +27,7 @@ export ${FULL_NODE}
 ./lotus chain create-actor bafk2bzaceadu2yc3k2fozpzhieeqcryrjwpaj2lwjeoyv6u6zhvevupehy5yq ewogICAgImlkcyI6IFtdLAogICAgImNyZWF0b3JzIjogW10sCiAgICAiYWRkcmVzc2VzIjogW10KfQ==
 
 make uptime-checker
-./uptime-checker --lotus-path /home/lotus/.lotus-local-net run --checker-host 0.0.0.0 --actor-address t2o77chfocqouqewddxzt4qn666hyrqxs6f7xqbtq --actor-id 100
+./uptime-checker --lotus-path /home/lotus/.lotus-local-net run --checker-host 0.0.0.0 --actor-address t2xvrdducml35whderlotzgrn6j42tpgxz34rdklq --actor-id 1001
 
 ./uptime-checker --lotus-path /home/lotus/.lotus-local-net run --checker-port 3001 --actor-address t2id4hwrn5osc2es6muzoblsgw2la4idd6gklvlhi --actor-id 101
 

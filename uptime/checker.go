@@ -429,3 +429,7 @@ func (u *UptimeChecker) isUp(addrStr MultiAddr) UpInfo {
 
 	return upInfo
 }
+
+func (u *UptimeChecker) NodeInfo() map[ActorID]map[MultiAddr]HealtcheckInfo {
+	return u.nodeAddresses
+}

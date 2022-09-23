@@ -9,11 +9,7 @@ import (
 	"net/http"
 
 	"strings"
-
 	"os"
-	"os/signal"
-	"syscall"
-	// "strconv"
 
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/urfave/cli/v2"
@@ -94,18 +90,18 @@ var runCmd = &cli.Command{
 			Usage:   "The host of the up time checker actor",
 			Value:   "0.0.0.0",
 		},
-		&cli.IntFlag{
+		&cli.StringFlag{
 			Name:    "checker-port",
 			EnvVars: []string{"CHECKER_PORT"},
 			Usage:   "The port of the up time checker actor",
-			Value:   3000,
+			Value:   "3000",
 		},
 	},
 	Action: func(cctx *cli.Context) error {
 		ctx := context.Background()
 
-		checkerHost := cctx.String("checker-host")
-		checkerPort := cctx.Int("checker-port")
+		// checkerHost := cctx.String("checker-host")
+		checkerPort := cctx.String("checker-port")
 
 		actorAddress := cctx.String("actor-address")
 		self := uptime.ActorID(cctx.Int("actor-id"))
@@ -121,7 +117,7 @@ var runCmd = &cli.Command{
 		// 	return err
 		// }
 
-		node, ping, addrs, err := setupLibp2p(checkerHost, checkerPort)
+		node, ping, addrs, err := setupLibp2p()
 		if err != nil {
 			return err
 		}
@@ -137,18 +133,17 @@ var runCmd = &cli.Command{
 			return err
 		}
 
-		// http.HandleFunc("/", getPing)
-
-		// err := http.ListenAndServe(":3333", nil)
-
-		// wait for a SIGINT or SIGTERM signal
-		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-		<-ch
-		log.Info("Received signal, shutting down...")
+		http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+			info, _ := uptime.EncodeJson(checker.NodeInfo())
+			fmt.Fprint(writer, info)
+		})
+		err = http.ListenAndServe(":" + checkerPort, nil)
+		if err != nil {
+			panic(err)
+		}
 
 		// shut the node down
-		if err := node.Close(); err != nil {
+		if err = node.Close(); err != nil {
 			panic(err)
 		}
 
@@ -156,9 +151,7 @@ var runCmd = &cli.Command{
 	},
 }
 
-func setupLibp2p(hostStr string, port int) (host.Host, *ping.PingService, []multiaddr.Multiaddr, error) {
-	log.Infow("ignore host str and port for test", "host", hostStr, "port", port)
-
+func setupLibp2p() (host.Host, *ping.PingService, []multiaddr.Multiaddr, error) {
 	node, err := libp2p.New(
 		// libp2p.ListenAddrStrings("/ip4/" + hostStr + "/tcp/" + strconv.Itoa(port)),
 		libp2p.Ping(false),

@@ -6,6 +6,10 @@ import (
 	"encoding/json"
 )
 
+func EncodeJson(payload interface{}) ([]byte, error) {
+	return encodeJson(payload)
+}
+
 func encodeJson(payload interface{}) ([]byte, error) {
 	reqBodyBytes := new(bytes.Buffer)
 	err := json.NewEncoder(reqBodyBytes).Encode(payload)
