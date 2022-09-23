@@ -181,7 +181,7 @@ func setupLibp2p(checkerHost string, checkerPort string) (host.Host, *ping.PingS
 		}
 	}
 
-	log.Errorw("Listen addresses:", "addrs", addrs, "first", onlyFirst)
+	log.Infow("Listen addresses:", "addrs", addrs, "first", onlyFirst)
 
 	return node, pingService, onlyFirst, nil
 }

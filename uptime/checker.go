@@ -89,9 +89,9 @@ func (u *UptimeChecker) Start(ctx context.Context) error {
 		u.processReportedCheckers(ctx)
 	}()
 
-	// go func() {
-	// 	u.monitorMemberNodes(ctx)
-	// }()
+	go func() {
+		u.monitorMemberNodes(ctx)
+	}()
 
 	go func() {
 		u.monitorCheckerNodes(ctx)
