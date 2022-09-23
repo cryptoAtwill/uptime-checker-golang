@@ -45,7 +45,15 @@ func main() {
 				Name:    "lotus-path",
 				EnvVars: []string{"LOTUS_PATH"},
 				Value:   "~/.lotus", // TODO: Consider XDG_DATA_HOME
+			},			
+			&cli.StringFlag{
+				Name:    "log-level",
+				EnvVars: []string{"LOG_LEVEL"},
+				Value:   "info",
 			},
+		},
+		Before: func(cctx *cli.Context) error {
+			return logging.SetLogLevelRegex("uptime-checker", cctx.String("log-level"))
 		},
 		Commands: local,
 	}
@@ -110,6 +118,13 @@ var runCmd = &cli.Command{
 	
 		actorAddress := cctx.String("actor-address")
 		self := uptime.ActorID(cctx.Int("actor-id"))
+
+		log.Infow(
+			"starting uptime checker",
+			"host", checkerHost,
+			"port", checkerPort,
+			"nodeInfoPort", nodeInfoPort,
+		)
 
 		api, closer, err := lcli.GetFullNodeAPI(cctx)
 		if err != nil {
