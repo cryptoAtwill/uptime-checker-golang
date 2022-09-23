@@ -5,7 +5,6 @@ import (
 	_ "net/http/pprof"
 
 	"fmt"
-	"io"
 	"net/http"
 
 	"strings"
@@ -199,9 +198,4 @@ func setupLibp2p(checkerHost string, checkerPort string) (host.Host, *ping.PingS
 	log.Infow("Listen addresses:", "addrs", addrs, "first", onlyFirst)
 
 	return node, pingService, onlyFirst, nil
-}
-
-func getPong(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("got / request\n")
-	io.WriteString(w, "Pong!\n")
 }

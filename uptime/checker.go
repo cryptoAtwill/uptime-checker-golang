@@ -436,6 +436,8 @@ func (u *UptimeChecker) NodeInfo() map[ActorID]map[MultiAddr]HealtcheckInfo {
 }
 
 func (u *UptimeChecker) NodeInfoJsonString() (string, error) {
+	log.Debugw("node map", "nodes",  u.nodeAddresses)
+
 	data := make(map[ActorID]map[MultiAddr]HealtcheckInfo, 0)
 
 	for k, v := range u.nodeAddresses {
