@@ -51,14 +51,14 @@ type Votes struct {
 /// NOTE: This is an initial proposal, each checker could
 /// include different (an arbitrary types of) information.
 type HealtcheckInfo struct {
-	healtcheckAddr MultiAddr
+	HealtcheckAddr MultiAddr
 
-	avgLatency uint64
-	latencyCounts uint64
+	AvgLatency uint64
+	LatencyCounts uint64
 
-	isOnline bool
-	latency uint64
-    lastChecked uint64
+	IsOnline bool
+	Latency uint64
+    LastChecked uint64
 }
 
 type UpInfo struct {
