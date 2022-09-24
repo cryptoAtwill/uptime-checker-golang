@@ -337,6 +337,8 @@ func (u *UptimeChecker) monitorCheckerNodes(ctx context.Context) error {
 			continue
 		}
 
+		log.Infow("list of checkers registered", "checkers", listToCheck)
+
 		for _, toCheckPeerID := range listToCheck {
 			addrs, err := state.ListCheckerMultiAddrs(toCheckPeerID)
 			if err != nil {

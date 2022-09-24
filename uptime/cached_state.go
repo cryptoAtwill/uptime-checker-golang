@@ -63,7 +63,7 @@ func (c *CacheState) ListReportedCheckerNotVoted() (map[ActorID]*[]MultiAddr, er
 		ids[actorID] = addrList
 	}
 
-	log.Infow("list of not voted offline checkers", "actorIds", ids)
+	log.Debugw("list of not voted offline checkers", "actorIds", ids)
 
 	return ids, nil
 }
