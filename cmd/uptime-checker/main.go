@@ -107,6 +107,12 @@ var runCmd = &cli.Command{
 			Usage:   "The port to get info of the nodes",
 			Value:   "3000",
 		},
+		&cli.IntFlag{
+			Name:    "wallet-index",
+			EnvVars: []string{"WALLET_INDEX"},
+			Usage:   "The index of wallet to use",
+			Value:   0,
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		ctx := context.Background()
@@ -114,6 +120,7 @@ var runCmd = &cli.Command{
 		checkerHost := cctx.String("checker-host")
 		checkerPort := cctx.String("checker-port")
 		nodeInfoPort := cctx.String("node-info-port")
+		walletIndex := cctx.Int("wallet-index")
 	
 		actorAddress := cctx.String("actor-address")
 		self := uptime.ActorID(cctx.Int("actor-id"))
@@ -123,6 +130,7 @@ var runCmd = &cli.Command{
 			"host", checkerHost,
 			"port", checkerPort,
 			"nodeInfoPort", nodeInfoPort,
+			"walletIndex", walletIndex,
 		)
 
 		api, closer, err := lcli.GetFullNodeAPI(cctx)
@@ -146,7 +154,7 @@ var runCmd = &cli.Command{
 			multiAddresses[i] = addr.String()
 		}
 
-		checker, err := uptime.NewUptimeChecker(api, actorAddress, multiAddresses, self, node, ping)
+		checker, err := uptime.NewUptimeChecker(api, actorAddress, multiAddresses, self, walletIndex, node, ping)
 		err = checker.Start(ctx)
 		if err != nil {
 			return err

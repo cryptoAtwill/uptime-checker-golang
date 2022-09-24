@@ -30,6 +30,7 @@ type UptimeChecker struct {
 	api v0api.FullNode
 
 	self ActorID
+	walletIndex int
 	actorAddress address.Address
 	
 	checkerAddresses []MultiAddr
@@ -48,6 +49,7 @@ func NewUptimeChecker(
 	actorAddress string,
 	checkerAddresses []MultiAddr,
 	self ActorID,
+	walletIndex int,
 	node host.Host,
 	ping *ping.PingService,
 ) (UptimeChecker, error) {
@@ -59,6 +61,7 @@ func NewUptimeChecker(
 		api: api,
 
 		self: self,
+		walletIndex: walletIndex,
 		actorAddress: addr,
 
 		checkerAddresses: checkerAddresses,
@@ -126,7 +129,7 @@ func (u *UptimeChecker) Register(ctx context.Context) error {
 		return err
 	}
 
-	fromAddr, err := u.api.WalletDefaultAddress(ctx)
+	fromAddr, err := u.getWalletAddress(ctx)
 	if err != nil {
 		return err
 	}
@@ -145,7 +148,7 @@ func (u *UptimeChecker) ReportChecker(ctx context.Context, actor ActorID) error 
 		return err
 	}
 
-	fromAddr, err := u.api.WalletDefaultAddress(ctx)
+	fromAddr, err := u.getWalletAddress(ctx)
 	if err != nil {
 		return err
 	}
@@ -450,4 +453,12 @@ func (u *UptimeChecker) NodeInfoJsonString() (string, error) {
 	}
 
 	return string(bytes), nil
+}
+
+func (u *UptimeChecker) getWalletAddress(ctx context.Context) (address.Address, error) {
+	walletList, err := u.api.WalletList(ctx)
+	if err != nil {
+		return address.Address{}, nil
+	}
+	return walletList[u.walletIndex], nil
 }
