@@ -80,7 +80,7 @@ var runCmd = &cli.Command{
 		&cli.StringFlag{
 			Name:    "actor-address",
 			EnvVars: []string{"ACTOR_ADDRESS"},
-			Usage:   "The address of the up time checker actor",
+			Usage:   "The address of the up time checker FVM actor",
 			Value:   "",
 		},
 		&cli.IntFlag{
@@ -92,19 +92,19 @@ var runCmd = &cli.Command{
 		&cli.StringFlag{
 			Name:    "checker-host",
 			EnvVars: []string{"CHECKER_HOST"},
-			Usage:   "The host of the up time checker actor",
+			Usage:   "The up time checker libp2p host",
 			Value:   "0.0.0.0",
 		},
 		&cli.StringFlag{
 			Name:    "checker-port",
 			EnvVars: []string{"CHECKER_PORT"},
-			Usage:   "The port of the up time checker actor",
+			Usage:   "The up time checker libp2p port",
 			Value:   "30000",
 		},
 		&cli.StringFlag{
 			Name:    "node-info-port",
 			EnvVars: []string{"NODE_INFO_PORT"},
-			Usage:   "The port to get info of the nodes",
+			Usage:   "The port to get uptime info of the nodes",
 			Value:   "3000",
 		},
 		&cli.IntFlag{

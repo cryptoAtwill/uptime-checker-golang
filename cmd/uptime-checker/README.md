@@ -1,46 +1,19 @@
-# lotus-stats
-
-`lotus-stats` is a small tool to push chain information into influxdb
+# Uptime-Checker-Golang
+The checker counter-part of `Uptime-Checker`.
 
 ## Setup
+To setup the FVM actor, please refer to the `uptime-checker` repo: .
 
-Influx configuration can be configured through env variables.
-
-```
-LOTUS_STATS_INFLUX_ADDR="http://localhost:8086"
-LOTUS_STATS_INFLUX_USER=""
-LOTUS_STATS_INFLUX_PASS=""
-```
+Once the actor is deployed, build the source code in the root folder using: `make uptime-checker`.
 
 ## Usage
+`uptime-checker-golang`will look in `~/.lotus` to connect to a running daemon and resume checking of both nodes and fellow checkers.
 
-lotus-stats will look in `~/.lotus` to connect to a running daemon and resume collecting stats from last record block height.
+For other usage see `./uptime-checker --help`
 
-For other usage see `./lotus-stats --help`
-
+Before starting the checker, define the following env variable:
 ```
-go build -o lotus-stats *.go 
-. env.stats && ./lotus-stats run
+FULL_NODE=$(./lotus auth api-info --perm admin)
+export ${FULL_NODE}
 ```
-
-For large networks there is an additional query in the `Top Miner Power` table, which can be toggled on to only show miners larger
-than 1 PiB. This is a good option to enable to reduce the number of miners listed when viewing mainnet stats.
-
-## Development
-
-Start grafana and influxdb containers and import the dashboard to grafana.
-The url of the imported dashboard will be returned.
-
-If the script doesn't work, you can manually setup the datasource and import the dashboard.
-
-```
-docker-compose up -d
-./setup.bash
-```
-
-The default username and password for grafana are both `admin`.
-
-## Updating the dashboard
-
-After importing the provided dashboard in `chain.dashboard.json`, you may make changes to the dashboard. To export
-the dashboard to be commited back to the project, make sure the option "sharing externally" is toggled on.
+Then start the app using `./uptime-checker run ...`.
