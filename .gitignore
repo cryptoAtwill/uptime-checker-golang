@@ -68,3 +68,4 @@ localnet.json
 .bash_history
 .gnupg
 !cmd/uptime-checker
+cheatSheet.md
