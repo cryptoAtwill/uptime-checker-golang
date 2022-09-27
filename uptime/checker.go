@@ -22,8 +22,11 @@ import (
 
 var log = logging.Logger("uptime")
 
-const NEW_CHECKER = 2
-const REPORT_CHECKER = 8
+const NEW_CHECKER_METHOD = 2
+const REPORT_CHECKER_METHOD = 8
+
+const PING_TIMEOUT = 120 // 120 seconds
+const DEFAULT_SLEEP_SECONDS = 5 // 5 seconds
 
 // UptimeChecker maintains the uptime of member nodes
 type UptimeChecker struct {
@@ -31,14 +34,14 @@ type UptimeChecker struct {
 
 	self ActorID
 	walletIndex int
-	actorAddress address.Address
+	uptimeCheckerAddress address.Address
 	
 	checkerAddresses []MultiAddr
 	nodeAddresses map[ActorID]map[MultiAddr]HealtcheckInfo
 
 	// libp2p ping related
-	node host.Host
-	ping *ping.PingService
+	node host.Host // node is the libp2p node struct of the checker
+	ping *ping.PingService // the libp2p ping service
 
 	rwLock sync.RWMutex
 	stop bool
@@ -46,14 +49,14 @@ type UptimeChecker struct {
 
 func NewUptimeChecker(
 	api v0api.FullNode,
-	actorAddress string,
+	uptimeCheckerAddress string,
 	checkerAddresses []MultiAddr,
 	self ActorID,
 	walletIndex int,
 	node host.Host,
 	ping *ping.PingService,
 ) (UptimeChecker, error) {
-	addr, err := address.NewFromString(actorAddress)
+	addr, err := address.NewFromString(uptimeCheckerAddress)
 	if err != nil {
 		return UptimeChecker{}, nil
 	}
@@ -62,7 +65,7 @@ func NewUptimeChecker(
 
 		self: self,
 		walletIndex: walletIndex,
-		actorAddress: addr,
+		uptimeCheckerAddress: addr,
 
 		checkerAddresses: checkerAddresses,
 		nodeAddresses: make(map[ActorID]map[MultiAddr]HealtcheckInfo),
@@ -88,24 +91,18 @@ func (u *UptimeChecker) Start(ctx context.Context) error {
 		log.Infow("already registered with the actor, skip register")
 	}
 
-	go func() {
-		u.processReportedCheckers(ctx)
-	}()
+	go u.processReportedCheckers(ctx)
 
-	go func() {
-		u.monitorMemberNodes(ctx)
-	}()
+	go u.monitorMemberNodes(ctx)
 
-	go func() {
-		u.monitorCheckerNodes(ctx)
-	}()
+	go u.monitorCheckerNodes(ctx)
 
 	return nil
 }
 
 // HasRegistered checks if the current checker has already registered itself in the actor
 func (u *UptimeChecker) HasRegistered(ctx context.Context) (bool, error) {
-	s, err := Load(ctx, u.api, u.actorAddress, u.self)
+	s, err := Load(ctx, u.api, u.uptimeCheckerAddress, u.self)
 	log.Infow("Self actor id", "actorId", u.self)
 
 	if err != nil {
@@ -134,7 +131,7 @@ func (u *UptimeChecker) Register(ctx context.Context) error {
 		return err
 	}
 
-	return u.execSync(ctx, NEW_CHECKER, fromAddr, params)
+	return u.executeMsgAndWait(ctx, NEW_CHECKER_METHOD, fromAddr, params)
 }
 
 // Reports to the actor that the checker is down
@@ -153,7 +150,7 @@ func (u *UptimeChecker) ReportChecker(ctx context.Context, actor ActorID) error 
 		return err
 	}
 
-	return u.execSync(ctx, REPORT_CHECKER, fromAddr, params)
+	return u.executeMsgAndWait(ctx, REPORT_CHECKER_METHOD, fromAddr, params)
 }
 
 // IsStop checks if the up time checker should stop running
@@ -171,12 +168,12 @@ func (u *UptimeChecker) Stop() {
 }
 
 func (u *UptimeChecker) CheckChecker(ctx context.Context, actorID ActorID, addrs *[]MultiAddr) error {
-	infos := u.multiAddrsUp(addrs)
+	infos := u.multiAddrsUp(ctx, addrs)
 	
 	if !allUp(&infos) {
 		log.Warnw("actor down, report now", "actorID", actorID)
 
-		state, err := Load(ctx, u.api, u.actorAddress, u.self)
+		state, err := Load(ctx, u.api, u.uptimeCheckerAddress, u.self)
 		if err != nil {
 			log.Errorw("cannot load state", "err", err)
 			return err
@@ -192,8 +189,8 @@ func (u *UptimeChecker) CheckChecker(ctx context.Context, actorID ActorID, addrs
 	return nil
 }
 
-func (u *UptimeChecker) CheckMember(actorID ActorID, addrs *[]MultiAddr) error {
-	infos := u.multiAddrsUp(addrs)
+func (u *UptimeChecker) CheckMember(ctx context.Context, actorID ActorID, addrs *[]MultiAddr) error {
+	infos := u.multiAddrsUp(ctx, addrs)
 	return u.recordMemberHealthInfo(actorID, &infos, addrs)
 }
 
@@ -237,7 +234,7 @@ func (u *UptimeChecker) recordMemberHealthInfo(actorID ActorID, upInfos *[]UpInf
 	return nil
 }
 
-func (u *UptimeChecker) multiAddrsUp(addrs *[]MultiAddr) []UpInfo {
+func (u *UptimeChecker) multiAddrsUp(ctx context.Context, addrs *[]MultiAddr) []UpInfo {
 	upInfos := make([]UpInfo, 0)
 	for _, addr := range(*addrs) {
 
@@ -253,7 +250,7 @@ func (u *UptimeChecker) multiAddrsUp(addrs *[]MultiAddr) []UpInfo {
 			continue
 		}
 
-		upInfos = append(upInfos, u.isUp(addr))
+		upInfos = append(upInfos, u.isUp(ctx, addr))
 	}
 	return upInfos
 }
@@ -264,7 +261,7 @@ func (u *UptimeChecker) processReportedCheckers(ctx context.Context) error {
 			break
 		}
 
-		state, err := Load(ctx, u.api, u.actorAddress, u.self)
+		state, err := Load(ctx, u.api, u.uptimeCheckerAddress, u.self)
 		if err != nil {
 			log.Errorw("cannot load state", "err", err)
 			continue
@@ -276,11 +273,11 @@ func (u *UptimeChecker) processReportedCheckers(ctx context.Context) error {
 			continue
 		}
 
-		for toCheckPeerID, addrs := range(listToCheck) {
+		for toCheckPeerID, addrs := range(*listToCheck) {
 			u.CheckChecker(ctx, toCheckPeerID, addrs)
 		}
 
-		time.Sleep(time.Duration(5) * time.Second)
+		u.sleep(DEFAULT_SLEEP_SECONDS)
 	}
 
 	return nil
@@ -292,7 +289,7 @@ func (u *UptimeChecker) monitorMemberNodes(ctx context.Context) error {
 			break
 		}
 
-		state, err := Load(ctx, u.api, u.actorAddress, u.self)
+		state, err := Load(ctx, u.api, u.uptimeCheckerAddress, u.self)
 		if err != nil {
 			log.Errorw("cannot load state", "err", err)
 			continue
@@ -313,10 +310,10 @@ func (u *UptimeChecker) monitorMemberNodes(ctx context.Context) error {
 
 			log.Debugw("member info", "actor", toCheckActorID, "addrs", addrs)
 
-			u.CheckMember(toCheckActorID, addrs)
+			u.CheckMember(ctx, toCheckActorID, addrs)
 		}
 
-		time.Sleep(time.Duration(5) * time.Second)
+		u.sleep(DEFAULT_SLEEP_SECONDS)
 	}
 
 	return nil
@@ -328,7 +325,7 @@ func (u *UptimeChecker) monitorCheckerNodes(ctx context.Context) error {
 			break
 		}
 
-		state, err := Load(ctx, u.api, u.actorAddress, u.self)
+		state, err := Load(ctx, u.api, u.uptimeCheckerAddress, u.self)
 		if err != nil {
 			log.Errorw("cannot load state", "err", err)
 			continue
@@ -357,14 +354,19 @@ func (u *UptimeChecker) monitorCheckerNodes(ctx context.Context) error {
 			}
 		}
 
-		time.Sleep(time.Duration(5) * time.Second)
+		u.sleep(DEFAULT_SLEEP_SECONDS)
 	}
 
 	return nil
 }
 
-func (u *UptimeChecker) execSync(ctx context.Context, method uint32, from address.Address, params []byte) error {
-	smsg, err := u.execSyncNoWait(ctx, method, from, params)
+func (u *UptimeChecker) sleep(seconds int) {
+	time.Sleep(time.Duration(seconds) * time.Second)
+}
+
+// executeMsgAndWait executes the method with given params and waits for the message to be executed
+func (u *UptimeChecker) executeMsgAndWait(ctx context.Context, method uint32, from address.Address, params []byte) error {
+	smsg, err := u.executeMsg(ctx, method, from, params)
 	if err != nil {
 		return err
 	}
@@ -373,9 +375,9 @@ func (u *UptimeChecker) execSync(ctx context.Context, method uint32, from addres
 	return u.wait(ctx, smsg)
 }
 
-func (u *UptimeChecker) execSyncNoWait(ctx context.Context, method uint32, from address.Address, params []byte) (*chainTypes.SignedMessage, error) {
+func (u *UptimeChecker) executeMsg(ctx context.Context, method uint32, from address.Address, params []byte) (*chainTypes.SignedMessage, error) {
 	msg := &chainTypes.Message{
-		To:     u.actorAddress,
+		To:     u.uptimeCheckerAddress,
 		From:   from,
 		Value:  big.Zero(),
 		Method: abi.MethodNum(method),
@@ -399,7 +401,7 @@ func (u *UptimeChecker) wait(ctx context.Context, smsg *chainTypes.SignedMessage
 }
 
 // Checks is up and also record the latency
-func (u *UptimeChecker) isUp(addrStr MultiAddr) UpInfo {
+func (u *UptimeChecker) isUp(ctx context.Context, addrStr MultiAddr) UpInfo {
 	upInfo := UpInfo{
 		isOnline: false,
 		latency: uint64(0),
@@ -419,17 +421,22 @@ func (u *UptimeChecker) isUp(addrStr MultiAddr) UpInfo {
 	}
 
 	log.Debugw("addr for peer", "peer", peer)
-	if err := u.node.Connect(context.Background(), *peer); err != nil {
+
+	now := time.Now()
+
+	cctx, _ := context.WithTimeout(ctx, PING_TIMEOUT * time.Second)
+	if err := u.node.Connect(cctx, *peer); err != nil {
 		log.Errorw("cannot connect to multi addr", "peer", peer.ID, "err", err, "addr", addr)
 		return upInfo
 	}
 
-	ch := u.ping.Ping(context.Background(), peer.ID)
+	ch := u.ping.Ping(cctx, peer.ID)
 	res := <-ch
 	log.Debugw("got ping response!", "RTT:", res.RTT, "res", res)
 
 	upInfo.isOnline = true
 	upInfo.checkedTime = uint64(time.Now().Unix())
+	upInfo.latency = uint64(time.Since(now))
 
 	return upInfo
 }

@@ -37,18 +37,18 @@ func (c *CacheState) HasRegistered(actor ActorID) (bool, error) {
 	return c.inner.HasRegistered(actor)
 }
 
-func (c *CacheState) ListReportedCheckerNotVoted() (map[ActorID]*[]MultiAddr, error) {
+func (c *CacheState) ListReportedCheckerNotVoted() (*map[ActorID]*[]MultiAddr, error) {
 	ids := make(map[ActorID]*[]MultiAddr)
 	
 	l, err := c.inner.GetOfflineCheckers()
 	if err != nil {
-		return ids, err
+		return nil, err
 	}
 
 	for _, actorID := range(l) {
 		hasVoted, err := c.HasVotedReportedPeer(actorID)
 		if err != nil {
-			return ids, err
+			return nil, err
 		}
 
 		if hasVoted {
@@ -57,7 +57,7 @@ func (c *CacheState) ListReportedCheckerNotVoted() (map[ActorID]*[]MultiAddr, er
 		
 		addrList, err := c.inner.ListCheckerMultiAddrs(actorID)
 		if err != nil {
-			return ids, err
+			return nil, err
 		}
 
 		ids[actorID] = addrList
@@ -65,7 +65,7 @@ func (c *CacheState) ListReportedCheckerNotVoted() (map[ActorID]*[]MultiAddr, er
 
 	log.Debugw("list of not voted offline checkers", "actorIds", ids)
 
-	return ids, nil
+	return &ids, nil
 }
 
 func (c *CacheState) ListCheckers() ([]ActorID, error) {

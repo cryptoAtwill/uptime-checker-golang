@@ -17,14 +17,14 @@ import (
 
 type HAMTStateInner struct {
     Members cid.Cid
-	Checkers cid.Cid
-	OfflineCheckers cid.Cid
+    Checkers cid.Cid
+    OfflineCheckers cid.Cid
     TotalCheckers uint64
 }
 
 type HAMTState struct {
     inner HAMTStateInner
-	store adt.Store
+    store adt.Store
 }
 
 func LoadHAMTState(ctx context.Context, api v0api.FullNode, addr address.Address) (HAMTState, error)  {
@@ -98,21 +98,19 @@ func (m *HAMTState) HasRegistered(actor ActorID) (bool, error) {
 }
 
 func (m *HAMTState) ListCheckerMultiAddrs(actorID ActorID) (*[]MultiAddr, error) {
-	addresses := make([]MultiAddr, 0)
-
 	checkerMap, err := adt.AsMap(m.store, m.inner.Checkers, builtin.DefaultHamtBitwidth)
 	if err != nil {
-		return &addresses, err
+		return nil, err
 	}
 
 	d := NodeInfo{}
 	found, err := checkerMap.Get(NewWrappedActorKey(actorID), &d)
 	if err != nil {
-		return &addresses, err
+		return nil, err
 	}
 
 	if !found {
-		return &addresses, nil
+		return nil, nil
 	}
 
 	log.Debugw("addresses", "actorID", actorID, "addresses", d)
@@ -120,21 +118,19 @@ func (m *HAMTState) ListCheckerMultiAddrs(actorID ActorID) (*[]MultiAddr, error)
 }
 
 func (m *HAMTState) ListMemberMultiAddrs(actorID ActorID) (*[]MultiAddr, error) {
-	addresses := make([]MultiAddr, 0)
-
 	checkerMap, err := adt.AsMap(m.store, m.inner.Members, builtin.DefaultHamtBitwidth)
 	if err != nil {
-		return &addresses, err
+		return nil, err
 	}
 
 	d := NodeInfo{}
 	found, err := checkerMap.Get(NewWrappedActorKey(actorID), &d)
 	if err != nil {
-		return &addresses, err
+		return nil, err
 	}
 
 	if !found {
-		return &addresses, nil
+		return nil, nil
 	}
 
 	return &d.Addresses, nil
