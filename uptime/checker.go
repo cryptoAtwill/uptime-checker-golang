@@ -23,10 +23,15 @@ import (
 var log = logging.Logger("uptime")
 
 const NEW_CHECKER_METHOD = 2
+const NEW_MEMBER_METHOD = 3
+const EDIT_CHECKER_METHOD = 4
+const EDIT_MEMBER_METHOD = 5
+const RM_CHCKER_METHOD = 6
+const RM_MEMBER_METHOD = 7
 const REPORT_CHECKER_METHOD = 8
 
-const PING_TIMEOUT = 120 // 120 seconds
-const DEFAULT_SLEEP_SECONDS = 5 // 5 seconds
+const PING_TIMEOUT = 120 * time.Second // 120 seconds
+const DEFAULT_SLEEP_SECONDS = 5 * time.Second // 5 seconds
 
 // UptimeChecker maintains the uptime of member nodes
 type UptimeChecker struct {
@@ -58,7 +63,7 @@ func NewUptimeChecker(
 ) (UptimeChecker, error) {
 	addr, err := address.NewFromString(uptimeCheckerAddress)
 	if err != nil {
-		return UptimeChecker{}, nil
+		return UptimeChecker{}, err
 	}
 	return UptimeChecker {
 		api: api,
@@ -360,8 +365,8 @@ func (u *UptimeChecker) monitorCheckerNodes(ctx context.Context) error {
 	return nil
 }
 
-func (u *UptimeChecker) sleep(seconds int) {
-	time.Sleep(time.Duration(seconds) * time.Second)
+func (u *UptimeChecker) sleep(seconds time.Duration) {
+	time.Sleep(seconds)
 }
 
 // executeMsgAndWait executes the method with given params and waits for the message to be executed
@@ -424,7 +429,7 @@ func (u *UptimeChecker) isUp(ctx context.Context, addrStr MultiAddr) UpInfo {
 
 	now := time.Now()
 
-	cctx, _ := context.WithTimeout(ctx, PING_TIMEOUT * time.Second)
+	cctx, _ := context.WithTimeout(ctx, PING_TIMEOUT)
 	if err := u.node.Connect(cctx, *peer); err != nil {
 		log.Errorw("cannot connect to multi addr", "peer", peer.ID, "err", err, "addr", addr)
 		return upInfo
@@ -463,9 +468,157 @@ func (u *UptimeChecker) NodeInfoJsonString() (string, error) {
 }
 
 func (u *UptimeChecker) getWalletAddress(ctx context.Context) (address.Address, error) {
-	walletList, err := u.api.WalletList(ctx)
+	return getWalletAddressFromIndex(u.api, ctx, u.walletIndex)
+}
+
+func getWalletAddressFromIndex(api v0api.FullNode, ctx context.Context, index int) (address.Address, error) {
+	walletList, err := api.WalletList(ctx)
 	if err != nil {
 		return address.Address{}, nil
 	}
-	return walletList[u.walletIndex], nil
+	return walletList[index], nil
+}
+
+func NewMember(
+	ctx context.Context,
+	api v0api.FullNode,
+	uptimeCheckerAddress address.Address,
+	multiAddresses []string,
+	peerId string,
+	walletIndex int,
+) error {
+	return upsert(ctx, api, uptimeCheckerAddress, multiAddresses, peerId, walletIndex, NEW_MEMBER_METHOD)
+}
+
+func EditMember(
+	ctx context.Context,
+	api v0api.FullNode,
+	uptimeCheckerAddress address.Address,
+	multiAddresses []string,
+	peerId string,
+	walletIndex int,
+) error {
+	return upsert(ctx, api, uptimeCheckerAddress, multiAddresses, peerId, walletIndex, EDIT_MEMBER_METHOD)
+}
+
+func EditChecker(
+	ctx context.Context,
+	api v0api.FullNode,
+	uptimeCheckerAddress address.Address,
+	multiAddresses []string,
+	peerId string,
+	walletIndex int,
+) error {
+	return upsert(ctx, api, uptimeCheckerAddress, multiAddresses, peerId, walletIndex, EDIT_CHECKER_METHOD)
+}
+
+func RmChecker(
+	ctx context.Context,
+	api v0api.FullNode,
+	uptimeCheckerAddress address.Address,
+	walletIndex int,
+) error {
+	return remove(ctx, api, uptimeCheckerAddress, walletIndex, RM_CHCKER_METHOD)
+}
+
+func RmMember(
+	ctx context.Context,
+	api v0api.FullNode,
+	uptimeCheckerAddress address.Address,
+	walletIndex int,
+) error {
+	return remove(ctx, api, uptimeCheckerAddress, walletIndex, RM_MEMBER_METHOD)
+}
+
+func upsert(
+	ctx context.Context,
+	api v0api.FullNode,
+	uptimeCheckerAddress address.Address,
+	multiAddresses []string,
+	peerId string,
+	walletIndex int,
+	methodNumber uint32,
+) error {
+	wallet, err := getWalletAddressFromIndex(api, ctx, walletIndex)
+	if err != nil {
+		return err
+	}
+
+	params, err := encodeJson(NodeInfo {
+		Id: peerId,
+		Addresses: multiAddresses,
+	})
+	if err != nil {
+		return err
+	}
+
+	return executeMsgAndWait(api, uptimeCheckerAddress, ctx, methodNumber, wallet, params)
+}
+
+func remove(
+	ctx context.Context,
+	api v0api.FullNode,
+	uptimeCheckerAddress address.Address,
+	walletIndex int,
+	methodNumber uint32,
+) error {
+	wallet, err := getWalletAddressFromIndex(api, ctx, walletIndex)
+	if err != nil {
+		return err
+	}
+	return executeMsgAndWait(api, uptimeCheckerAddress, ctx, methodNumber, wallet, make([]byte, 0))
+}
+
+// executeMsgAndWait executes the method with given params and waits for the message to be executed
+func executeMsgAndWait(
+	api v0api.FullNode,
+	actor address.Address,
+	ctx context.Context,
+	method uint32,
+	from address.Address,
+	params []byte,
+) error {
+	smsg, err := executeMsg(api, actor, ctx, method, from, params)
+	if err != nil {
+		return err
+	}
+
+	log.Infow("waiting for message to execute...")
+	return wait(api, ctx, smsg)
+}
+
+func executeMsg(
+	api v0api.FullNode,
+	actor address.Address,
+	ctx context.Context,
+	method uint32,
+	from address.Address,
+	params []byte,
+) (*chainTypes.SignedMessage, error) {
+	msg := &chainTypes.Message{
+		To:     actor,
+		From:   from,
+		Value:  big.Zero(),
+		Method: abi.MethodNum(method),
+		Params: params,
+	}
+	return api.MpoolPushMessage(ctx, msg, nil)
+}
+
+func wait(
+	api v0api.FullNode,
+	ctx context.Context,
+	smsg *chainTypes.SignedMessage,
+) (error) {
+	wait, err := api.StateWaitMsg(ctx, smsg.Cid(), 0)
+	if err != nil {
+		return err
+	}
+
+	// check it executed successfully
+	if wait.Receipt.ExitCode != 0 {
+		return fmt.Errorf("actor execution failed")
+	}
+
+	return nil
 }

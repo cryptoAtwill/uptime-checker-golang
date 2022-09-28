@@ -1,7 +1,5 @@
 package main
 
-// TODO: man, how this works with local package?
-
 import (
 	gen "github.com/whyrusleeping/cbor-gen"
 
@@ -10,7 +8,7 @@ import (
 
 func main() {
 	if err := gen.WriteMapEncodersToFile("../cbor_gen.go", "uptime",
-		// uptime.NodeInfo{},
+		uptime.NodeInfo{},
 		uptime.Votes{},
 		uptime.HAMTStateInner{},
 	); err != nil {

@@ -23,13 +23,22 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/multiformats/go-multiaddr"
 	peerstore "github.com/libp2p/go-libp2p-core/peer"
+
+	"github.com/filecoin-project/go-address"
 )
 
 var log = logging.Logger("uptime-checker")
 
+const MultiAddressDelimiter = ","
+
 func main() {
 	local := []*cli.Command{
 		runCmd,
+		newMemberCmd,
+		editMemberCmd,
+		rmMemberCmd,
+		editCheckerCmd,
+		rmCheckerCmd,
 		versionCmd,
 	}
 
@@ -139,11 +148,6 @@ var runCmd = &cli.Command{
 		}
 		defer closer()
 
-		// peerID, err := api.ID(ctx);
-		// if err != nil {
-		// 	return err
-		// }
-
 		node, ping, addrs, err := setupLibp2p(checkerHost, checkerPort)
 		if err != nil {
 			return err
@@ -172,6 +176,319 @@ var runCmd = &cli.Command{
 		// shut the node down
 		if err = node.Close(); err != nil {
 			panic(err)
+		}
+
+		return nil
+	},
+}
+
+var newMemberCmd = &cli.Command{
+	Name:  "new-member",
+	Usage: "Creates a member node to the uptime checker actor.",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "actor-address",
+			EnvVars: []string{"ACTOR_ADDRESS"},
+			Usage:   "The address of the up time checker FVM actor",
+			Value:   "",
+		},
+		&cli.StringFlag{
+			Name:    "peer-id",
+			Usage:   "The peer id of the node/checker",
+			Value:   "",
+		},
+		&cli.StringFlag{
+			Name:    "multi-addresses",
+			Usage:   "The comma seperated multi-addresses to be registered",
+			Value:   "",
+		},
+		&cli.IntFlag{
+			Name:    "wallet-index",
+			EnvVars: []string{"WALLET_INDEX"},
+			Usage:   "The index of wallet to use",
+			Value:   0,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		ctx := context.Background()
+
+		walletIndex := cctx.Int("wallet-index")
+
+		actorAddress, err := address.NewFromString(cctx.String("actor-address"))
+		if err != nil {
+			return err
+		}
+
+		multiAddressRaw := strings.Split(cctx.String("multi-addresses"), MultiAddressDelimiter)
+		peerId := cctx.String("peer-id")
+
+		log.Infow(
+			"upsert node to uptime checker",
+			"walletIndex", walletIndex,
+			"actorAddress", actorAddress,
+			"multiAddresses", multiAddressRaw,
+			"peerId", peerId,
+		)
+
+		for _, addr := range multiAddressRaw {
+			_, err := address.NewFromString(addr)
+			if err != nil {
+				return err
+			}
+		}
+
+		api, closer, err := lcli.GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+
+		err = uptime.NewMember(ctx, api, actorAddress, multiAddressRaw, peerId, walletIndex)
+		if err != nil {
+			return err
+		}
+
+		log.Infow(
+			"executed new member",
+			"actorAddress", actorAddress,
+			"multiAddresses", multiAddressRaw,
+			"peerId", peerId,
+		)
+
+		return nil
+	},
+}
+
+var editMemberCmd = &cli.Command{
+	Name:  "edit-member",
+	Usage: "Edits a member node to the uptime checker actor.",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "actor-address",
+			EnvVars: []string{"ACTOR_ADDRESS"},
+			Usage:   "The address of the up time checker FVM actor",
+			Value:   "",
+		},
+		&cli.StringFlag{
+			Name:    "peer-id",
+			Usage:   "The peer id of the node/checker",
+			Value:   "",
+		},
+		&cli.StringFlag{
+			Name:    "multi-addresses",
+			Usage:   "The comma seperated multi-addresses to be registered",
+			Value:   "",
+		},
+		&cli.IntFlag{
+			Name:    "wallet-index",
+			EnvVars: []string{"WALLET_INDEX"},
+			Usage:   "The index of wallet to use",
+			Value:   0,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		ctx := context.Background()
+
+		walletIndex := cctx.Int("wallet-index")
+
+		actorAddress, err := address.NewFromString(cctx.String("actor-address"))
+		if err != nil {
+			return err
+		}
+
+		multiAddressRaw := strings.Split(cctx.String("multi-addresses"), MultiAddressDelimiter)
+		peerId := cctx.String("peer-id")
+
+		log.Infow(
+			"edits member in uptime checker",
+			"walletIndex", walletIndex,
+			"actorAddress", actorAddress,
+			"multiAddresses", multiAddressRaw,
+			"peerId", peerId,
+		)
+
+		for _, addr := range multiAddressRaw {
+			_, err := address.NewFromString(addr)
+			if err != nil {
+				return err
+			}
+		}
+
+		api, closer, err := lcli.GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+
+		err = uptime.EditMember(ctx, api, actorAddress, multiAddressRaw, peerId, walletIndex)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+var editCheckerCmd = &cli.Command{
+	Name:  "edit-checker",
+	Usage: "Edits a checker node to the uptime checker actor.",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "actor-address",
+			EnvVars: []string{"ACTOR_ADDRESS"},
+			Usage:   "The address of the up time checker FVM actor",
+			Value:   "",
+		},
+		&cli.StringFlag{
+			Name:    "peer-id",
+			Usage:   "The peer id of the node/checker",
+			Value:   "",
+		},
+		&cli.StringFlag{
+			Name:    "multi-addresses",
+			Usage:   "The comma seperated multi-addresses to be registered",
+			Value:   "",
+		},
+		&cli.IntFlag{
+			Name:    "wallet-index",
+			EnvVars: []string{"WALLET_INDEX"},
+			Usage:   "The index of wallet to use",
+			Value:   0,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		ctx := context.Background()
+
+		walletIndex := cctx.Int("wallet-index")
+
+		actorAddress, err := address.NewFromString(cctx.String("actor-address"))
+		if err != nil {
+			return err
+		}
+
+		multiAddressRaw := strings.Split(cctx.String("multi-addresses"), MultiAddressDelimiter)
+		peerId := cctx.String("peer-id")
+
+		log.Infow(
+			"edits checker in uptime checker",
+			"walletIndex", walletIndex,
+			"actorAddress", actorAddress,
+			"multiAddresses", multiAddressRaw,
+			"peerId", peerId,
+		)
+
+		for _, addr := range multiAddressRaw {
+			_, err := address.NewFromString(addr)
+			if err != nil {
+				return err
+			}
+		}
+
+		api, closer, err := lcli.GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+
+		err = uptime.EditChecker(ctx, api, actorAddress, multiAddressRaw, peerId, walletIndex)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+var rmCheckerCmd = &cli.Command{
+	Name:  "remove-checker",
+	Usage: "Remove a checker node to the uptime checker actor.",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "actor-address",
+			EnvVars: []string{"ACTOR_ADDRESS"},
+			Usage:   "The address of the up time checker FVM actor",
+			Value:   "",
+		},
+		&cli.IntFlag{
+			Name:    "wallet-index",
+			EnvVars: []string{"WALLET_INDEX"},
+			Usage:   "The index of wallet to use",
+			Value:   0,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		ctx := context.Background()
+
+		walletIndex := cctx.Int("wallet-index")
+
+		actorAddress, err := address.NewFromString(cctx.String("actor-address"))
+		if err != nil {
+			return err
+		}
+
+		log.Infow(
+			"removes checker in uptime checker",
+			"walletIndex", walletIndex,
+			"actorAddress", actorAddress,
+		)
+
+		api, closer, err := lcli.GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+
+		err = uptime.RmChecker(ctx, api, actorAddress, walletIndex)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
+var rmMemberCmd = &cli.Command{
+	Name:  "remove-member",
+	Usage: "Remove a member node to the uptime checker actor.",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "actor-address",
+			EnvVars: []string{"ACTOR_ADDRESS"},
+			Usage:   "The address of the up time checker FVM actor",
+			Value:   "",
+		},
+		&cli.IntFlag{
+			Name:    "wallet-index",
+			EnvVars: []string{"WALLET_INDEX"},
+			Usage:   "The index of wallet to use",
+			Value:   0,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		ctx := context.Background()
+
+		walletIndex := cctx.Int("wallet-index")
+
+		actorAddress, err := address.NewFromString(cctx.String("actor-address"))
+		if err != nil {
+			return err
+		}
+
+		log.Infow(
+			"removes member in uptime checker",
+			"walletIndex", walletIndex,
+			"actorAddress", actorAddress,
+		)
+
+		api, closer, err := lcli.GetFullNodeAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer closer()
+
+		err = uptime.RmMember(ctx, api, actorAddress, walletIndex)
+		if err != nil {
+			return err
 		}
 
 		return nil
