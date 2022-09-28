@@ -194,6 +194,16 @@ lotus-stats:
 .PHONY: lotus-stats
 BINS+=lotus-stats
 
+uptime-gen:
+	$(GOCC) run ./cmd/uptime-checker/gen.go
+.PHONY: uptime-gen
+
+uptime-checker:
+	rm -f uptime-checker
+	$(GOCC) build $(GOFLAGS) -o uptime-checker ./cmd/uptime-checker
+.PHONY: uptime-checker
+BINS+=uptime-checker
+
 lotus-pcr:
 	rm -f lotus-pcr
 	$(GOCC) build $(GOFLAGS) -o lotus-pcr ./cmd/lotus-pcr
